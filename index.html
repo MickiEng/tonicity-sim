@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RBC Tonicity Simulator</title>
+    <style>
+        :root {
+            --rbc-red: #d32f2f;
+            --rbc-border: #801313;
+            --bg-hypo: rgba(240, 249, 255, 0.4); 
+            --bg-iso: rgba(186, 230, 253, 0.5);  
+            --bg-hyper: rgba(125, 211, 252, 0.6);
+            --texture-dot: #075985;
+            --size-base: 64px;
+            --scale-swelled: 1.28;
+            --scale-shrunken: 0.7;
+            --transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            --water-blue: #0ea5e9;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            display: flex; justify-content: center; 
+            padding: 20px; color: #1e293b; background: #f8fafc; 
+        }
+
+        .app-card { 
+            width: 100%; max-width: 850px; background: #fff; 
+            border: 1px solid #e2e8f0; border-radius: 12px; 
+            padding: 30px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        
+        header { margin-bottom: 30px; }
+        h1 { font-size: 1.5rem; color: #0f172a; margin-bottom: 8px; }
+        .subtitle { font-size: 0.95rem; color: #64748b; }
+
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 650px) { .grid { grid-template-columns: 1fr; } }
+
+        .column { display: flex; flex-direction: column; align-items: center; position: relative; }
+        .label { font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 15px; color: #475569; }
+
+        .holding { 
+            height: 100px; width: 100%; display: flex; justify-content: center; 
+            align-items: center; border-bottom: 1px dashed #cbd5e0; margin-bottom: 20px; 
+            position: relative; z-index: 20;
+        }
+
+        /* TUBE CONTAINER FOR ARROW POSITIONING */
+        .tube-wrapper { position: relative; display: flex; align-items: center; justify-content: center; }
+
+        .tube {
+            width: 140px; height: 180px;
+            border: 3px solid #64748b; border-top: none;
+            border-radius: 0 0 60px 60px;
+            position: relative; 
+            overflow: hidden;
+        }
+
+        .liquid {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 0 0 57px 57px;
+            z-index: 1;
+            transition: background-size var(--transition);
+        }
+
+        /* YOUR ORIGINAL TUBE STATES */
+        .tube-hypo .liquid { 
+            background-color: var(--bg-hypo);
+            background-image: radial-gradient(var(--texture-dot) 0.8px, transparent 0.8px);
+            background-size: 40px 40px; 
+        }
+        
+        .tube-iso .liquid { 
+            background-color: var(--bg-iso);
+            background-image: radial-gradient(var(--texture-dot) 1px, transparent 1px);
+            background-size: 10px 10px; 
+        }
+        
+        .tube-hyper .liquid { 
+            background-color: var(--bg-hyper);
+            background-image: radial-gradient(var(--texture-dot) 1.5px, transparent 1.5px);
+            background-size: 4.5px 4.5px; 
+        }
+
+        /* YOUR ORIGINAL FINAL TUBE STATES */
+        .is-dropped .tube-hypo .liquid { background-size: 18px 18px; }
+        .is-dropped .tube-hyper .liquid { background-size: 6px 6px; }
+
+        /* ARROW INDICATORS */
+        .arrow-indicator {
+            position: absolute;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .arrow-indicator span { font-size: 0.6rem; font-weight: 800; color: var(--water-blue); text-transform: uppercase; }
+        .arrow-left { left: -45px; }
+        .arrow-right { right: -45px; }
+        .arrow-indicator svg { fill: var(--water-blue); }
+        .is-dropped .arrow-indicator { opacity: 1; animation: pulse 2s infinite ease-in-out; }
+
+        /* Arrow Directions */
+        .col-hypo .arrow-left svg { transform: rotate(0deg); } /* Point In */
+        .col-hypo .arrow-right svg { transform: rotate(180deg); } /* Point In */
+        .col-hyper .arrow-left svg { transform: rotate(180deg); } /* Point Out */
+        .col-hyper .arrow-right svg { transform: rotate(0deg); } /* Point Out */
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* YOUR ORIGINAL RBC STYLING */
+        .rbc {
+            width: var(--size-base); height: var(--size-base);
+            background-color: var(--rbc-red);
+            border: 3px solid var(--rbc-border);
+            border-radius: 50%;
+            background-image: radial-gradient(var(--texture-dot) 1px, transparent 1px);
+            background-size: 10px 10px; 
+            background-blend-mode: soft-light;
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.4);
+            transition: transform var(--transition), background-size var(--transition), background-image var(--transition), border-radius var(--transition);
+            position: relative; 
+            z-index: 10;
+        }
+
+        .rbc::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 45%; height: 45%;
+            background: rgba(0,0,0,0.15); border-radius: 50%;
+            transition: opacity 0.5s;
+        }
+
+        /* YOUR ORIGINAL RBC DROP LOGIC */
+        .col-hypo.is-dropped .rbc { 
+            transform: translateY(160px) scale(var(--scale-swelled));
+            background-image: radial-gradient(var(--texture-dot) 0.625px, transparent 0.625px);
+            background-size: 14.06px 14.06px; 
+        }
+        .col-hypo.is-dropped .rbc::after { opacity: 0; }
+
+        .col-iso.is-dropped .rbc { 
+            transform: translateY(160px) scale(1);
+            background-size: 10px 10px;
+        }
+
+        .col-hyper.is-dropped .rbc { 
+            transform: translateY(160px) scale(var(--scale-shrunken));
+            background-image: radial-gradient(var(--texture-dot) 2.14px, transparent 2.14px);
+            background-size: 8.57px 8.57px;
+            border-radius: 42% 58% 51% 49% / 57% 45% 55% 43%; 
+        }
+
+        .drop-btn { 
+            cursor: pointer; padding: 6px 14px; border-radius: 6px; 
+            border: 1px solid #cbd5e0; background: #fff; font-weight: 600; 
+            margin-bottom: 10px; font-size: 0.85rem; z-index: 30; position: relative;
+        }
+        .drop-btn:disabled { opacity: 0; pointer-events: none; }
+        .btn-reset { background: #1e293b; color: #fff; border: none; margin-top: 25px; padding: 12px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .feedback { margin-top: 15px; font-size: 0.85rem; min-height: 3em; padding: 0 10px; color: #64748b; line-height: 1.4; }
+        .is-dropped .feedback { color: #0f172a; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <header>
+        <h1>RBC Tonicity Simulator</h1>
+        <p class="subtitle">See how red blood cells respond to different solution concentrations.</p>
+    </header>
+
+    <div class="grid">
+        <div id="col-hypo" class="column col-hypo">
+            <span class="label">Hypotonic</span>
+            <button class="drop-btn" onclick="drop('hypo')">Drop Cell</button>
+            <div class="holding"><div class="rbc"></div></div>
+            <div class="tube-wrapper">
+                <div class="arrow-indicator arrow-left"><span>Water</span><svg width="30" height="30" viewBox="0 0 24 24"><path d="M21,12L14,5V9H3V15H14V19L21,12Z"/></svg></div>
+                <div class="tube tube-hypo"><div class="liquid"></div></div>
+                <div class="arrow-indicator arrow-right"><span>Water</span><svg width="30" height="30" viewBox="0 0 24 24"><path d="M21,12L14,5V9H3V15H14V19L21,12Z"/></svg></div>
+            </div>
+            <p class="feedback" id="msg-hypo">Ready for drop.</p>
+        </div>
+
+        <div id="col-iso" class="column col-iso">
+            <span class="label">Isotonic</span>
+            <button class="drop-btn" onclick="drop('iso')">Drop Cell</button>
+            <div class="holding"><div class="rbc"></div></div>
+            <div class="tube-wrapper">
+                <div class="tube tube-iso"><div class="liquid"></div></div>
+            </div>
+            <p class="feedback" id="msg-iso">Ready for drop.</p>
+        </div>
+
+        <div id="col-hyper" class="column col-hyper">
+            <span class="label">Hypertonic</span>
+            <button class="drop-btn" onclick="drop('hyper')">Drop Cell</button>
+            <div class="holding"><div class="rbc"></div></div>
+            <div class="tube-wrapper">
+                <div class="arrow-indicator arrow-left"><span>Water</span><svg width="30" height="30" viewBox="0 0 24 24"><path d="M21,12L14,5V9H3V15H14V19L21,12Z"/></svg></div>
+                <div class="tube tube-hyper"><div class="liquid"></div></div>
+                <div class="arrow-indicator arrow-right"><span>Water</span><svg width="30" height="30" viewBox="0 0 24 24"><path d="M21,12L14,5V9H3V15H14V19L21,12Z"/></svg></div>
+            </div>
+            <p class="feedback" id="msg-hyper">Ready for drop.</p>
+        </div>
+    </div>
+
+    <button class="btn-reset" onclick="resetAll()">Reset All Tubes</button>
+</div>
+
+<script>
+    const explanations = {
+        hypo: "Water enters the cell. The cell swells (and may burst).",
+        iso: "Dynamic equilibrium. No net change in cell volume.",
+        hyper: "Water leaves the cell. The cell shrivels (crenation)."
+    };
+
+    function drop(type) {
+        const col = document.getElementById(`col-${type}`);
+        const msg = document.getElementById(`msg-${type}`);
+        col.classList.add('is-dropped');
+        msg.innerText = explanations[type];
+        col.querySelector('.drop-btn').disabled = true;
+    }
+
+    function resetAll() {
+        document.querySelectorAll('.column').forEach(col => {
+            col.classList.remove('is-dropped');
+            col.querySelector('.drop-btn').disabled = false;
+        });
+        document.querySelectorAll('.feedback').forEach(f => f.innerText = "Ready for drop.");
+    }
+</script>
+
+</body>
+</html>
