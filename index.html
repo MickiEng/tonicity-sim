@@ -168,6 +168,32 @@
         .btn-reset { background: #1e293b; color: #fff; border: none; margin-top: 25px; padding: 12px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; }
         .feedback { margin-top: 15px; font-size: 0.85rem; min-height: 3em; padding: 0 10px; color: #64748b; line-height: 1.4; }
         .is-dropped .feedback { color: #0f172a; font-weight: 600; }
+        /* Desktop: Pins logo to the top-right corner of the white card */
+.widget-logo {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    max-height: 45px;
+    width: auto;
+    z-index: 100; /* Higher z-index to stay above the simulator tubes */
+}
+
+/* Mobile: Moves logo to the bottom-center under the reset button */
+@media screen and (max-width: 600px) {
+    .widget-logo {
+        position: static !important;
+        display: block !important;
+        margin: 30px auto 10px auto !important;
+        max-height: 35px !important;
+    }
+    
+    .app-card {
+        position: relative; /* Required for the desktop absolute positioning */
+        padding-top: 40px;  /* Adds space so the logo doesn't crowd the header */
+        display: flex !important;
+        flex-direction: column !important;
+    }
+}
     </style>
 </head>
 <body>
@@ -215,6 +241,10 @@
     </div>
 
     <button class="btn-reset" onclick="resetAll()">Reset All Tubes</button>
+    <img src="beal-university-logo.webp" alt="Beal University Logo" class="widget-logo">
+</div> ```
+
+---
 </div>
 
 <script>
